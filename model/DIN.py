@@ -56,55 +56,40 @@ class DIN(Model):
     def call(self, inputs):
         """
         :param inputs:  [dense_feats,user_id,[hist_item_id],item_id], 其中dense_feats 被全填充为0
-
         :return: probability
         """
-        x = inputs
+        dense_inputs, sparse_inputs, sparse_att_inputs,  hist_inputs, hist_length = inputs
 
-        # dense_inputs, sparse_inputs, seq_inputs, item_inputs = inputs
-        dense_feats_col = [col['feat'] for col in self.dense_feature_columns]
-        sparse_feats_col = [col['feat'] for col in self.sparse_feature_columns
-                            if col['feat'] not in self.hist_feature_columns]
-        hist_feats_col = [col['feat'] for col in self.sparse_feature_columns
-                          if col['feat'] in self.hist_feature_columns]  # attention里的feature 种类
-
-        # columns == ['user_id', 'hist', 'target_item', 'cate_ad', 'label'])
-        saprse_inputs = inputs[sparse_feats_col].values
-        dense_inputs = inputs[dense_feats_col].values
-        hist_target_inputs = inputs[hist_feats_col].values
-        hist_inputs = inputs['hist'].values
-        hist_length = inputs['hist_len'].values
         # 普通sparse feats
         sparse_emb = []
         for i in range(self.sparse_len):
-            sparse_emb.append(self.embed_sparse_layers[i](saprse_inputs[:, i]))
+            sparse_emb.append(self.embed_sparse_layers[i](sparse_inputs[:, i]))
         sparse_emb = tf.concat(sparse_emb, axis=-1)
 
         # concat dense if exists
-        if dense_inputs != []:
+        if     self.dense_len  != 0:
             original_emb = tf.concat([dense_inputs, sparse_emb])
         else:
             original_emb = sparse_emb
 
         # 填充历史数据为等长度
         if self.hist_feature_len == 1:
-            padding_hist = pad_sequences(hist_inputs, maxlen=self.max_hist_len, padding='post')
-            query_emb = self.embed_seq_layers[0](saprse_inputs[:, 0])
-            hist_emb = self.embed_seq_layers[0](padding_hist)
+            query_emb = self.embed_seq_layers[0](sparse_att_inputs[:, 0])
+            hist_emb = self.embed_seq_layers[0](hist_inputs)
         else:
             # 非只有一个  TODO:可能不对
             assert 1 == 0, 'wait to do'
-            seq_embed = []
-            query_emb = []
-            for i in range(self.hist_feature_len):
-                query_emb.append(self.embed_seq_layers[i](saprse_inputs[:, i]))
-                for j in range(hist_length[i]):
-                    seq_embed.append(self.embed_seq_layers[i](hist_inputs[i, j]))
-            seq_embed = tf.concat(seq_embed)
+            # seq_embed = []
+            # query_emb = []
+            # for i in range(self.hist_feature_len):
+            #     query_emb.append(self.embed_seq_layers[i](sparse_inputs[:, i]))
+            #     for j in range(hist_length[i]):
+            #         seq_embed.append(self.embed_seq_layers[i](hist_inputs[i, j]))
+            # seq_embed = tf.concat(seq_embed)
             query_emb = tf.concat(query_emb)
 
         # attention
-        attention_emb = self.attention_layer(query_emb, hist_emb, hist_length)  # (None, d * 2)
+        attention_emb = self.attention_layer([query_emb, hist_emb, hist_length])  # (None, d * 2)
         # concatenate all embeddings
         all_emb =  tf.concat([attention_emb, original_emb], axis = -1)
         mlp_outputs = self.din_mlp(all_emb)

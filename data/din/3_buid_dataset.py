@@ -7,7 +7,6 @@ import numpy as np
 import tensorflow as tf
 # from tqdm import tqdm
 from tensorflow.keras.preprocessing.sequence import pad_sequences
-from model.DIN import DIN
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 random.seed(1234)
@@ -76,7 +75,7 @@ def create_amazon_electronic_dataset(file, embed_dim=8, maxlen=20):
 
 
     # behavior
-    behavior_list = ['item_id']  # , 'cate_id'
+    hist_feature_columns = ['item_id']  # , 'cate_id'
 
     # shuffle
     random.shuffle(train_data)
@@ -89,10 +88,49 @@ def create_amazon_electronic_dataset(file, embed_dim=8, maxlen=20):
     train['hist_len'] = train['hist'].transform(len)
     test['hist_len'] = train['hist'].transform(len)
 
-    train_y = train.pop('label')
-    train_X = train
-    test_y = test.pop('label')
-    test_X = test
+    print('==================Padding===================')
+    # 第一维度填0 表示没有出现的dense feature
+
+    # dense_inputs, sparse_inputs, seq_inputs, item_inputs = inputs
+    dense_feature_columns,  sparse_feature_columns = feature_columns
+    dense_feats_col = [col['feat'] for col in dense_feature_columns]
+    sparse_feats_col = [col['feat'] for col in sparse_feature_columns
+                        if col['feat'] not in hist_feature_columns]
+    hist_feats_col = [col['feat'] for col in sparse_feature_columns
+                      if col['feat'] in hist_feature_columns]  # attention里的feature 种类
+
+
+    if len(dense_feats_col )== 0:
+
+        train_X = [np.array([0.] * len(train)),
+                   train[sparse_feats_col].values,
+                   train[hist_feats_col].values,
+                   pad_sequences(train['hist'], maxlen=maxlen,padding='post'),
+                   train['hist_len'].values,
+                 ]
+        train_y = train['label'].values
+        # dense_inputs, saprse_inputs, hist_target_inputs, hist_inputs
+        test_X = [np.array([0.] * len(test)),
+                   test[sparse_feats_col].values,
+                   test[hist_feats_col].values,
+                   pad_sequences(test['hist'], maxlen=maxlen,padding='post'),
+                   test['hist_len'].values,
+                 ]
+        test_y = test['label'].values
+    else:
+        assert  1 == 0, 'TODO '
+        # train_X = [train[dense_feats_col].values,
+        #            train[sparse_feats_col].values,
+        #            pad_sequences(train['hist'], maxlen=maxlen),
+        #            train['hist_len'].values,
+        #          ]
+        # test_X = [np.array([0.] * len(test)),
+        #            test[['item_id',  'cate_id',]].values,
+        #            pad_sequences(test['hist'], maxlen=maxlen),
+        #           test['hist_len'].values
+        #          ]
+        # test_y = test['label'].values
+
 
     # if no dense or sparse features, can fill with 0
     # train_X = [train['user_id'],
@@ -111,7 +149,7 @@ def create_amazon_electronic_dataset(file, embed_dim=8, maxlen=20):
     #           ]
     # test_y = test['label'].values
     print('============Data Preprocess End=============')
-    return feature_columns, behavior_list, (train_X, train_y), (test_X, test_y)
+    return feature_columns, hist_feature_columns, (train_X, train_y), (test_X, test_y)
 
 
 file = '/Users/yangsu/Documents/代码/Myctr/data/din/remap.pkl'
@@ -129,14 +167,14 @@ batch_size = 4096
 epochs = 5
 # ========================== Create dataset =======================
 # %%
-feature_columns, behavior_list, train,  test = create_amazon_electronic_dataset(file, embed_dim, maxlen)
+feature_columns, hist_feature_columns, train, test = create_amazon_electronic_dataset(file, embed_dim, maxlen)
 # train 的组成：[user_id,hist_id,item_id,label]
 
 
 file = '/Users/yangsu/Documents/代码/Myctr/data/din/dataset.pkl'
 
 with open(file, 'wb') as f:
-    pickle.dump(behavior_list, f, pickle.HIGHEST_PROTOCOL)
     pickle.dump(feature_columns, f, pickle.HIGHEST_PROTOCOL)
+    pickle.dump(hist_feature_columns, f, pickle.HIGHEST_PROTOCOL)
     pickle.dump(train, f, pickle.HIGHEST_PROTOCOL)  #
     pickle.dump(test, f, pickle.HIGHEST_PROTOCOL)
