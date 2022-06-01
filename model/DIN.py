@@ -55,7 +55,7 @@ class DIN(Model):
 
     def call(self, inputs):
         """
-        :param inputs:  [dense_feats,user_id,[hist_item_id],item_id], 其中dense_feats 被全填充为0
+        :param inputs:  [dense_inputs, sparse_inputs, sparse_att_inputs,  hist_inputs, hist_length], 其中dense_feats 被全填充为0
         :return: probability
         """
         dense_inputs, sparse_inputs, sparse_att_inputs,  hist_inputs, hist_length = inputs

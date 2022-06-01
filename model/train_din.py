@@ -103,4 +103,4 @@ if __name__ == '__main__':
                    ]
     )
     # ===========================Test==============================
-    print('test AUC: %f' % model.evaluate(test_X, test_y, batch_size=5000))
+    print(f'test AUC:  {model.evaluate(test_X, test_y, batch_size=5000)}')
