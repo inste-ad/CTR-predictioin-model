@@ -55,7 +55,7 @@ class LogistRegression(Layer):
         return output
 
 class SparseInput(Layer):
-    def __init__(self, sparse_feats, sparse_dims,embed_dim,l2_reg):
+    def __init__(self, sparse_feats, sparse_dims,embed_dim= 8,l2_reg= 0.02):
         super(SparseInput, self).__init__()
         self.sparse_feats = sparse_feats
         self.embeds = []
@@ -63,9 +63,10 @@ class SparseInput(Layer):
             self.embeds.append(
             Embedding(
             input_dim= sparse_dims[feat],
-            output_dim= 8,
+            output_dim= embed_dim,
             embeddings_regularizer= L2(l2_reg),
-            name= f'Embedding{feat}'
+            name= f'Embedding{feat}',
+            input_length= 1,
             )
                 )
         self.concatenate = Concatenate()
